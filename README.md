@@ -7,7 +7,7 @@ Apply contour detection to count and characterize cell shapes.
 Visualize the results with bounding boxes or annotations.
 
 ## Installation
-# Setup and Libraries
+## Setup and Libraries
 Make sure you have OpenCV installed in your Python environment. You can install it using pip:
 ```bash
 pip install opencv-python numpy matplotlib
