@@ -1,1 +1,1 @@
-# automatically-counting-and-analyzing-cells-in-microscopy-images
+# Automatically-counting-and-analyzing-cells-in-microscopy-images
