@@ -1,63 +1,59 @@
 import cv2
 import numpy as np
+import matplotlib.pyplot as plt
 
-# Load the pre-trained model
-net = cv2.dnn.readNet("yolov3.weights", "yolov3.cfg")
-layer_names = net.getLayerNames()
-output_layers = [layer_names[i[0] - 1] for i in net.getUnconnectedOutLayers()]
+# Function to load and preprocess the image
+def load_and_preprocess_image(image_path):
+    # Load the image
+    image = cv2.imread(image_path)
+    image_gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+    return image, image_gray
 
-# Load the image
-image = cv2.imread("image.jpg")
-height, width, channels = image.shape
+# Function to apply Gaussian blur and thresholding
+def preprocess_image(image_gray):
+    # Apply Gaussian blur
+    blurred = cv2.GaussianBlur(image_gray, (5, 5), 0)
+    
+    # Apply Otsu's thresholding
+    _, binary_image = cv2.threshold(blurred, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
+    
+    # Morphological operations
+    kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (3, 3))
+    morph_image = cv2.morphologyEx(binary_image, cv2.MORPH_CLOSE, kernel)
+    
+    return morph_image
 
-# Prepare the image for detection
-blob = cv2.dnn.blobFromImage(image, 0.00392, (416, 416), (0, 0, 0), True, crop=False)
-net.setInput(blob)
-outs = net.forward(output_layers)
+# Function to find and count contours
+def count_cells(morph_image):
+    contours, _ = cv2.findContours(morph_image, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+    return contours
 
-# Initialize lists for detected objects
-class_ids = []
-confidences = []
-boxes = []
+# Function to visualize results
+def visualize_results(image, contours):
+    output_image = image.copy()
+    cell_count = 0
+    
+    for contour in contours:
+        if cv2.contourArea(contour) > 100:  # Filter out small contours
+            x, y, w, h = cv2.boundingRect(contour)
+            cv2.rectangle(output_image, (x, y), (x + w, y + h), (0, 255, 0), 2)  # Green boxes
+            cell_count += 1
+    
+    print(f'Total number of cells detected: {cell_count}')
+    
+    # Display the output image with bounding boxes
+    plt.imshow(cv2.cvtColor(output_image, cv2.COLOR_BGR2RGB))
+    plt.title('Cell Counting with Bounding Boxes')
+    plt.axis('off')
+    plt.show()
 
-# Process the outputs
-for out in outs:
-    for detection in out:
-        scores = detection[5:]
-        class_id = np.argmax(scores)
-        confidence = scores[class_id]
-        if confidence > 0.5:
-            center_x = int(detection[0] * width)
-            center_y = int(detection[1] * height)
-            w = int(detection[2] * width)
-            h = int(detection[3] * height)
+# Main function
+def main(image_path):
+    image, image_gray = load_and_preprocess_image(image_path)
+    morph_image = preprocess_image(image_gray)
+    contours = count_cells(morph_image)
+    visualize_results(image, contours)
 
-            # Rectangle coordinates
-            x = int(center_x - w / 2)
-            y = int(center_y - h / 2)
-
-            boxes.append([x, y, w, h])
-            confidences.append(float(confidence))
-            class_ids.append(class_id)
-
-# Apply Non-Maxima Suppression
-indexes = cv2.dnn.NMSBoxes(boxes, confidences, 0.5, 0.4)
-
-# Count detected objects
-count = len(indexes)
-
-# Draw bounding boxes and labels on the image
-for i in range(len(boxes)):
-    if i in indexes:
-        x, y, w, h = boxes[i]
-        label = str(classes[class_ids[i]])
-        cv2.rectangle(image, (x, y), (x + w, y + h), (0, 255, 0), 2)
-        cv2.putText(image, label, (x, y + 30), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
-
-# Display the output
-cv2.imshow("Image", image)
-cv2.waitKey(0)
-cv2.destroyAllWindows()
-
-# Print the count of detected objects
-print("Number of objects detected:", count)
+# Replace 'microscopy_image.jpg' with your image path
+if __name__ == "__main__":
+    main('microscopy_image.jpg')
